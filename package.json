@@ -10,15 +10,15 @@
     "adapter",
     "virtual"
   ],
-  "homepage": "https://github.com/kabbi/zigbee2mqtt-adapter",
+  "homepage": "https://github.com/nobodypb/zigbee2mqtt-adapter",
   "author": "Kabbi",
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kabbi/zigbee2mqtt-adapter.git"
+    "url": "https://github.com/nobodypb/zigbee2mqtt-adapter.git"
   },
   "bugs": {
-    "url": "https://github.com/kabbi/zigbee2mqtt-adapter/issues"
+    "url": "https://github.com/nobodypb/zigbee2mqtt-adapter/issues"
   },
   "dependencies": {
     "mqtt": "^2.18.8"
