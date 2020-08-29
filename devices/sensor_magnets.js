@@ -1,7 +1,7 @@
 module.exports = {
     'lumi.sensor_magnet': {
         name: 'Xiaomi Magnet Contact Sensor',
-        '@type': ['BinarySensor'],
+        '@type': ['DoorSensor'],
         properties: {
             battery: {
                 type: 'integer',
@@ -16,14 +16,16 @@ module.exports = {
             },
             contact: {
                 type: 'boolean',
-                '@type': 'BooleanProperty',
+                '@type': 'OpenProperty',
+                fromMqtt: v => !v,
+                toMqtt: v => !v,
                 readOnly: true,
             },
         },
     },
     'lumi.sensor_magnet.aq2': {
         name: 'Xiaomi Magnet Contact Sensor',
-        '@type': ['BinarySensor'],
+        '@type': ['DoorSensor'],
         properties: {
             battery: {
                 type: 'integer',
@@ -38,7 +40,9 @@ module.exports = {
             },
             contact: {
                 type: 'boolean',
-                '@type': 'BooleanProperty',
+                '@type': 'OpenProperty',
+                fromMqtt: v => !v,
+                toMqtt: v => !v,
                 readOnly: true,
             },
         },

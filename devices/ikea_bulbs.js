@@ -14,10 +14,11 @@ module.exports = {
                 type: 'number',
                 minimum: 0,
                 maximum: 100,
-                fromMqtt: v => (v / 255) * 100,
-                toMqtt: v => (v / 100) * 255,
+                fromMqtt: v => (v / 254) * 100,
+                toMqtt: v => (v / 100) * 254,
             },
             color_temp: {
+                '@type': 'ColorTemperatureProperty',
                 type: 'integer',
                 minimum: 0,
                 maximum: 500,
@@ -25,6 +26,7 @@ module.exports = {
             linkquality: {
                 type: 'integer',
                 readOnly: true,
+                value: 255
             },
         },
     },
@@ -43,10 +45,11 @@ module.exports = {
                 type: 'number',
                 minimum: 0,
                 maximum: 100,
-                fromMqtt: v => (v / 255) * 100,
-                toMqtt: v => (v / 100) * 255,
+                fromMqtt: v => (v / 254) * 100,
+                toMqtt: v => (v / 100) * 254,
             },
             color_temp: {
+                '@type': 'ColorTemperatureProperty',
                 type: 'integer',
                 minimum: 0,
                 maximum: 500,
@@ -54,6 +57,7 @@ module.exports = {
             linkquality: {
                 type: 'integer',
                 readOnly: true,
+                value: 255
             },
         },
     }

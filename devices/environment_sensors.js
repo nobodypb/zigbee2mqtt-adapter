@@ -75,14 +75,19 @@ module.exports = {
                 readOnly: true,
             },
             voltage: {
-                type: 'integer',
+                '@type': 'VoltageProperty',
+                type: 'number',
                 minimum: 0,
-                maximum: 3300,
+                maximum: 3.3,
+                multipleOf: 0.001,
                 readOnly: true,
+                fromMqtt: v => v / 1000
             },
             linkquality: {
+                title: 'Link Quality',
                 type: 'integer',
                 readOnly: true,
+                value: 255
             },
             temperature: {
                 type: 'number',

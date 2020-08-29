@@ -25,6 +25,7 @@ module.exports = {
             linkquality: {
                 type: 'integer',
                 readOnly: true,
+                value: 255
             },
         },
     },
