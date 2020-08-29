@@ -138,24 +138,34 @@ class ZigbeeMqttAdapter extends Adapter {
     }
   }
 
+  getDevice(msg) {
+    const friendlyName = msg.device.friendlyName || msg.device.friendly_name;
+    const device = this.devices[friendlyName];
+    if (!device) {
+      this.addDevice(msg.device);
+    }
+    return this.devices[friendlyName];
+  }
+
   publishMessage(topic, msg) {
     this.client.publish(`${this.config.prefix}/${topic}`, JSON.stringify(msg));
   }
 
   addDevice(info) {
-    if (!Devices[info.modelID]) {
-      // No definition for the given model ID. Skipping.
+    const modelId = info.modelId || info.model;
+    const description = Devices[modelId];
+    if (!description) {
+      console.warn(`Failed to add new device. There is no description for ${modelId} model.`);
       return;
     }
-    const existingDevice = this.getDevice(info.friendly_name);
-    if (existingDevice && existingDevice.modelId === info.modelID) {
-      console.info(`Device ${info.friendly_name} already exists`)
+    const friendlyName = info.friendlyName || info.friendly_name;
+    if (friendlyName in this.devices) {
+      console.info(`Device model:${modelId}, friendlyName:${friendlyName} already exists. Skip adding.`);
       return;
     }
-
-    const device = new MqttDevice(this, info.friendly_name, info.modelID);
-    this.client.subscribe(`${this.config.prefix}/${info.friendly_name}`);
+    const device = new MqttDevice(this, friendlyName, description);
     this.handleDeviceAdded(device);
+    console.info(`New device model:${modelId}, friendlyName:${friendlyName} is added.`);
   }
 
   startPairing(_timeoutSeconds) {
