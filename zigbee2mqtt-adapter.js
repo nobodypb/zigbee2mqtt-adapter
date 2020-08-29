@@ -163,7 +163,7 @@ class ZigbeeMqttAdapter extends Adapter {
       console.info(`Device model:${modelId}, friendlyName:${friendlyName} already exists. Skip adding.`);
       return;
     }
-    const device = new MqttDevice(this, friendlyName, description);
+    const device = new MqttDevice(this, friendlyName, modelId);
     this.handleDeviceAdded(device);
     console.info(`New device model:${modelId}, friendlyName:${friendlyName} is added.`);
   }
