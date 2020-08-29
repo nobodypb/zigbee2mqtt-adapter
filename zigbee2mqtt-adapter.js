@@ -19,27 +19,32 @@ const identity = v => v;
 class MqttProperty extends Property {
   constructor(device, name, propertyDescription) {
     super(device, name, propertyDescription);
+
+    this.options = propertyDescription;
+
     this.setCachedValue(propertyDescription.value);
     this.device.notifyPropertyChanged(this);
-    this.options = propertyDescription;
   }
 
-  setValue(value) {
-    return new Promise((resolve, reject) => {
-      super
-        .setValue(value)
-        .then(updatedValue => {
-          const { toMqtt = identity } = this.options;
-          this.device.adapter.publishMessage(`${this.device.id}/set`, {
-            [this.name]: toMqtt(updatedValue),
-          });
-          resolve(updatedValue);
-          this.device.notifyPropertyChanged(this);
-        })
-        .catch(err => {
-          reject(err);
-        });
+  async setValue(value) {
+    const { toMqtt = identity } = this.options;
+    this.device.adapter.publishMessage(`${this.device.id}/set`, {
+      [this.name]: toMqtt(value),
     });
+
+    await super.setValue(value);
+    this.device.notifyPropertyChanged(this); // TODO: Should we wait for a MQTT Message indicating the change?
+    return value;
+  }
+
+  setCachedValueFromMQTT(value) {
+    if(this.options)
+    {
+      const { fromMqtt = identity } = this.options;
+      value = fromMqtt(value)
+    }
+
+    return super.setCachedValue(value);
   }
 }
 
@@ -48,6 +53,8 @@ class MqttDevice extends Device {
     super(adapter, id);
 
     this.name = description.name;
+
+    this['@context'] = 'https://iot.mozilla.org/schemas/';
     this['@type'] = description['@type'];
 
     for (const [name, desc] of Object.entries(description.properties || {})) {
@@ -70,12 +77,33 @@ class ZigbeeMqttAdapter extends Adapter {
     this.client = mqtt.connect(this.config.mqtt);
     this.client.on('error', error => console.error('mqtt error', error));
     this.client.on('message', this.handleIncomingMessage.bind(this));
+    this.client.subscribe(`${this.config.prefix}/+/availability`); // TODO: Actually use this
     this.client.subscribe(`${this.config.prefix}/bridge/config/devices`);
+
+    // Get information about all devices
     this.client.publish(`${this.config.prefix}/bridge/config/devices/get`);
   }
 
+  /**
+   * 
+   * @param {String} topic 
+   * @param {String | null} data 
+   */
   handleIncomingMessage(topic, data) {
-    const msg = JSON.parse(data.toString());
+    if(topic.endsWith('availability') || topic.endsWith('get')) {
+      // TODO: Display availability?
+      return;
+    }
+
+    let msg = {};
+
+    try {
+      msg = JSON.parse(data.toString()); 
+    }
+    catch {
+      // TODO: Gracefully handle JSON errors
+      return;
+    }
     
     // Here we add a new thing.
     if (topic.startsWith(`${this.config.prefix}/bridge/config/devices`)) {
@@ -109,16 +137,9 @@ class ZigbeeMqttAdapter extends Adapter {
         const property = device.findProperty(key);
         if (!property) {
           continue;
-        }       
+        }      
         
-        if (possibleModelId) {               // If we are dealing with a complex message.
-          const description = Devices[possibleModelId];
-          const { fromMqtt = identity } = description.properties[key];
-          property.setCachedValue(fromMqtt(msg[key]));
-        }
-        else {                              // If we are dealing with a simple message which only holds values.
-          property.setCachedValue(msg[key]);
-        }
+        property.setCachedValueFromMQTT(msg[key]);
         device.notifyPropertyChanged(property); // Notify the Gateway that this property's value has updated.
       }
       
@@ -177,8 +198,13 @@ class ZigbeeMqttAdapter extends Adapter {
       return;
     }
     const device = new MqttDevice(this, friendlyName, description);
+    this.client.subscribe(`${this.config.prefix}/${friendlyName}/#`);
     this.handleDeviceAdded(device);
     console.info(`New device added. Model: ${modelId}, friendlyName: ${friendlyName}`);
+
+    // Get current device state at startup
+    // TODO: Only do this for online devices
+    this.client.publish(`${this.config.prefix}/${friendlyName}/get`);
   }
 
   startPairing(_timeoutSeconds) {
