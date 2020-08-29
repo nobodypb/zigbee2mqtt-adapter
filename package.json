@@ -1,7 +1,7 @@
 {
   "name": "zigbee2mqtt-adapter",
   "display_name": "zigbee2mqtt adapter",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Brings all your zigbee devices to the gateway through mqtt bridge",
   "main": "index.js",
   "keywords": [
