@@ -44,10 +44,12 @@ class MqttProperty extends Property {
 }
 
 class MqttDevice extends Device {
-  constructor(adapter, id, description) {
+  constructor(adapter, id, modelId) {
     super(adapter, id);
+    const description = Devices[modelId];
     this.name = description.name;
     this['@type'] = description['@type'];
+    this.modelId = modelId;
     for (const [name, desc] of Object.entries(description.properties || {})) {
       const property = new MqttProperty(this, name, desc);
       this.properties.set(name, property);
@@ -68,7 +70,6 @@ class ZigbeeMqttAdapter extends Adapter {
     this.client.on('error', error => console.error('mqtt error', error));
     this.client.on('message', this.handleIncomingMessage.bind(this));
     this.client.subscribe(`${this.config.prefix}/bridge/config/devices`);
-    this.client.subscribe(`${this.config.prefix}/+`);
     this.client.publish(`${this.config.prefix}/bridge/config/devices/get`);
   }
 
@@ -142,11 +143,18 @@ class ZigbeeMqttAdapter extends Adapter {
   }
 
   addDevice(info) {
-    const description = Devices[info.modelId];
-    if (!description) {
+    if (!Devices[info.modelID]) {
+      // No definition for the given model ID. Skipping.
       return;
     }
-    const device = new MqttDevice(this, info.friendly_name, description);
+    const existingDevice = this.getDevice(info.friendly_name);
+    if (existingDevice && existingDevice.modelId === info.modelID) {
+      console.info(`Device ${info.friendly_name} already exists`)
+      return;
+    }
+
+    const device = new MqttDevice(this, info.friendly_name, info.modelID);
+    this.client.subscribe(`${this.config.prefix}/${info.friendly_name}`);
     this.handleDeviceAdded(device);
   }
 
@@ -165,3 +173,4 @@ function loadAdapter(addonManager, manifest, _errorCallback) {
 }
 
 module.exports = loadAdapter;
+
