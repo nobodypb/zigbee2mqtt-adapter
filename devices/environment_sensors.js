@@ -62,5 +62,41 @@ module.exports = {
                 readOnly: true,
             },
         },
+    },
+    'WSDCGQ01LM': {
+        name: 'Xiaomi MiJia Temperature & Humidity Sensor',
+        '@type': ['TemperatureSensor'],
+        properties: {
+            battery: {
+                type: 'integer',
+                unit: 'percent',
+                minimum: 0,
+                maximum: 100,
+                readOnly: true,
+            },
+            voltage: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 3300,
+                readOnly: true,
+            },
+            linkquality: {
+                type: 'integer',
+                readOnly: true,
+            },
+            temperature: {
+                type: 'number',
+                '@type': 'TemperatureProperty',
+                unit: 'degree celsius',
+                multipleOf: 0.01,
+                readOnly: true,
+            },
+            humidity: {
+                type: 'number',
+                unit: 'percent',
+                multipleOf: 0.01,
+                readOnly: true,
+            },
+        },
     }
 }
