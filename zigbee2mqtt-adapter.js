@@ -44,16 +44,17 @@ class MqttProperty extends Property {
 }
 
 class MqttDevice extends Device {
-  constructor(adapter, id, modelId) {
+  constructor(adapter, id, description) {
     super(adapter, id);
-    const description = Devices[modelId];
+
     this.name = description.name;
     this['@type'] = description['@type'];
-    this.modelId = modelId;
+
     for (const [name, desc] of Object.entries(description.properties || {})) {
       const property = new MqttProperty(this, name, desc);
       this.properties.set(name, property);
     }
+
     for (const [name, desc] of Object.entries(description.events || {})) {
       this.addEvent(name, desc);
     }
@@ -85,16 +86,14 @@ class ZigbeeMqttAdapter extends Adapter {
     
     // Here we deal with incoming messages from things, such as state changes or new values from sensors.
     if (!topic.startsWith(`${this.config.prefix}/bridge`)) {
-      
-      
       var possibleModelId = "";
       var possibleFriendlyName = "";
       
-      if('device' in msg){                  // In some cases it's a complex message with a device dictionary in it.
+      if ('device' in msg) {                 // In some cases it's a complex message with a device dictionary in it.
         possibleFriendlyName = msg.device.friendlyName;
         possibleModelId = msg.device.modelId;
       }
-      else {                                // In other cases it's a simple message, just a list of new values.
+      else {                                 // In other cases it's a simple message, just a list of new values.
         var parts = topic.split("/");
         possibleFriendlyName = parts.pop();
       }
@@ -112,7 +111,7 @@ class ZigbeeMqttAdapter extends Adapter {
           continue;
         }       
         
-        if(possibleModelId) {               // If we are dealing with a complex message.
+        if (possibleModelId) {               // If we are dealing with a complex message.
           const description = Devices[possibleModelId];
           const { fromMqtt = identity } = description.properties[key];
           property.setCachedValue(fromMqtt(msg[key]));
@@ -139,7 +138,15 @@ class ZigbeeMqttAdapter extends Adapter {
   }
 
   getDevice(msg) {
-    const friendlyName = msg.device.friendlyName || msg.device.friendly_name;
+    let friendlyName = null;
+
+    if(typeof msg === 'string') {
+      friendlyName = msg;
+    }
+    else {
+      friendlyName = msg.device.friendlyName || msg.device.friendly_name;
+    }
+
     const device = this.devices[friendlyName];
     if (!device) {
       this.addDevice(msg.device);
@@ -152,20 +159,26 @@ class ZigbeeMqttAdapter extends Adapter {
   }
 
   addDevice(info) {
+    if(info.type === 'Coordinator') { // Ignore our network coordinator
+      console.log(`Zigbee Coordinator is ${info.softwareBuildID}`);
+      return;
+    }
+
     const modelId = info.modelId || info.model;
     const description = Devices[modelId];
     if (!description) {
-      console.warn(`Failed to add new device. There is no description for ${modelId} model.`);
+      console.log(info);
+      console.warn(`Failed to add new device. There is no description for ${modelId} model: ${info.vendor} "${info.description}"`);
       return;
     }
     const friendlyName = info.friendlyName || info.friendly_name;
     if (friendlyName in this.devices) {
-      console.info(`Device model:${modelId}, friendlyName:${friendlyName} already exists. Skip adding.`);
+      console.info(`Device already exists. Skip adding. model: ${modelId}, friendlyName: ${friendlyName}.`);
       return;
     }
     const device = new MqttDevice(this, friendlyName, description);
     this.handleDeviceAdded(device);
-    console.info(`New device model:${modelId}, friendlyName:${friendlyName} is added.`);
+    console.info(`New device added. Model: ${modelId}, friendlyName: ${friendlyName}`);
   }
 
   startPairing(_timeoutSeconds) {
