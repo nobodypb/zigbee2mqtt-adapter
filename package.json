@@ -33,8 +33,8 @@
     "README.md",
     "manifest.json",
     "index.js",
-    "zigbee2mqtt-adapter.js",
-    "devices.js",
+    "src/*.js",
+    "src/devices/*.js",
     "simulator.js"
   ],
   "moziot": {
