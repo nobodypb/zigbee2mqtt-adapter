@@ -8,6 +8,6 @@
 
 'use strict';
 
-const loadAdapter = require('./zigbee2mqtt-adapter');
+const loadAdapter = require('./src/zigbee2mqtt-adapter');
 
 module.exports = loadAdapter;
