@@ -25,7 +25,7 @@ class MqttDevice extends Device {
    * @param {Object} info 
    */
   constructor(adapter, friendlyName, description, info) {
-    super(adapter, 'zigbee2mqtt-' + friendlyName);
+    super(adapter, 'zigbee2mqtt-' + (info.ieeeAddr || friendlyName));
 
     /**
      * @type {MqttAdapter}
@@ -35,12 +35,13 @@ class MqttDevice extends Device {
 
     this.name = description.name;
     this.friendlyName = friendlyName;
+    this.model = info.model;
     this.connected = false;
 
     this.info = info;
 
     this.groups_set = false;
-    this.groups_list = [];
+    this.group_list = [];
     this.group_capacity = 0;
 
     this['@context'] = 'https://iot.mozilla.org/schemas/';
@@ -93,6 +94,19 @@ class MqttDevice extends Device {
 
   /**
    * 
+   * @param {string} group Friendly groupname
+   */
+  addGroup(group) {
+    if(this.groups_set)
+      this.group_capacity--;
+    else
+      this.groups_set = true;
+
+    this.group_list.push(group);
+  }
+
+  /**
+   * 
    * @param {string[]} list 
    * @param {number} capacity 
    */
@@ -118,7 +132,7 @@ class MqttDeviceGroup extends Device {
   constructor(adapter, friendlyName, description) {
     super(adapter, 'zigbee2mqtt-group-' + friendlyName);
 
-    this.name = 'Group ' + description.name;
+    this.name = 'Group ' + friendlyName;
     this.friendlyName = friendlyName;
 
     this.children = new Map();

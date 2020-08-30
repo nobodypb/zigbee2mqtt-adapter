@@ -4,6 +4,10 @@ const mqtt = require('mqtt');
 const { Adapter, Event } = require('gateway-addon');
 const { MqttDevice, MqttDeviceGroup } = require('./webthings-device');
 
+const DeviceStorage = require("./device-storage");
+const path = require("path");
+const MANIFEST = require('../manifest.json');
+
 const DEVICE_DESCRIPTIONS = require('./devices');
 
 class MqttAdapter extends Adapter {
@@ -12,11 +16,55 @@ class MqttAdapter extends Adapter {
     this.config = manifest.moziot.config;
     addonManager.addAdapter(this);
 
+    // TODO: Error checks for paths
+    this.dataDir = path.join(this.manager.userProfile.dataDir, MANIFEST.id);
+    //this.storage = new DeviceStorage(':memory:');
+    this.storage = new DeviceStorage(path.join(this.dataDir, 'devices.sqlite3'), this);
+    console.log("Data directory is: ", this.dataDir);
+
     this.availabilityCache = new Map();
 
     this.client = mqtt.connect(this.config.mqtt);
     this.client.on('error', error => console.error('mqtt error', error));
     this.client.on('message', this.handleIncomingMessage.bind(this));
+
+    this.init().catch((err) => {
+      console.error("Error on initialization:", err);
+    });
+  }
+
+  async init() {
+    await this.storage.initTables();
+    console.info("SQLite tables inited");
+
+    // Load saved devices and groups
+    let devices = await this.storage.getDevices(this);
+
+    for (const device of devices) {
+      this._addDevice(device);
+      console.debug(`Loaded device from storage. Model: ${device.model}, name: ${device.friendlyName}`);
+    }
+
+    let groups = await this.storage.getGroups(this);
+
+    for (const group of groups) {
+      let devs = await this.storage.getDeviceIdsInGroup(group);
+
+      for (const dev of devs) {
+        /** @type {MqttDevice} */
+        const device = this.getDevice(dev);
+        if(!device)
+          continue; // Remove from storage?
+        
+        group.addChild(device);
+        device.addGroup(group.friendlyName);
+      }
+
+      this._addDevice(group);
+      console.debug(`Loaded group from storage. Name: ${group.friendlyName}, childs: ${group.children.size}`);
+    }
+
+    // This starts the fun
     this.subscribe(`+/availability`);
     this.subscribe(`bridge/config/devices`);
     this.subscribe(`bridge/state`);
@@ -205,17 +253,15 @@ class MqttAdapter extends Adapter {
         let group = this.getDeviceByFriendlyName(groupname);
 
         if (group === null) {
-          group = this._addDevice(groupname, {
-            name: groupname,
-            '@type': device['@type'],
-            properties: device.getPropertyDescriptions()
-          }, null, true);
+          group = new MqttDeviceGroup(this, groupname, DEVICE_DESCRIPTIONS[device.model]);
+          this._addDevice(group);
 
           console.info(`New group '${groupname}' added`);
         }
 
         if (group.addChild(device)) {
           console.info(`Device '${device.friendlyName}' added to group '${groupname}'`);
+          this.storage.saveGroup(group);
         }
       }
     }
@@ -250,17 +296,12 @@ class MqttAdapter extends Adapter {
     }
   }
 
-  _addDevice(friendlyName, description, info, is_group = false) {
-    let device = null;
-
-    if (is_group) {
-      device = new MqttDeviceGroup(this, friendlyName, description);
-    }
-    else {
-      device = new MqttDevice(this, friendlyName, description, info);
-    }
-
-    this.subscribe(friendlyName + '/#');
+  /**
+   * 
+   * @param {MqttDevice | MqttDeviceGroup} device 
+   */
+  _addDevice(device) {
+    this.subscribe(device.friendlyName + '/#');
     this.handleDeviceAdded(device);
     return device;
   }
@@ -279,6 +320,8 @@ class MqttAdapter extends Adapter {
     const modelId = info.modelId || info.model;
     const description = DEVICE_DESCRIPTIONS[modelId];
 
+    info.model = modelId; // Normalize
+
     if (!description) {
       console.log(info);
       console.warn(`Failed to add new device. There is no description for ${modelId} model: ${info.vendor} "${info.description}"`);
@@ -291,7 +334,10 @@ class MqttAdapter extends Adapter {
       return;
     }
 
-    const device = this._addDevice(friendlyName, description, info);
+    const device = new MqttDevice(this, friendlyName, description, info);
+    this.storage.saveDevice(device);
+    this._addDevice(device);
+
     let connected = this.availabilityCache.get(friendlyName) || false;
     device.setAvailability(connected);
 
