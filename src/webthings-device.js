@@ -132,6 +132,12 @@ class MqttDeviceGroup extends Device {
   constructor(adapter, friendlyName, description) {
     super(adapter, 'zigbee2mqtt-group-' + friendlyName);
 
+    /**
+     * @type {MqttAdapter}
+     * @protected
+     */
+    this.adapter;
+
     this.name = 'Group ' + friendlyName;
     this.friendlyName = friendlyName;
 
@@ -189,8 +195,12 @@ class MqttDeviceGroup extends Device {
 
     this.children.delete(device.friendlyName);
 
-    // TODO: If no child is left, group should also be removed
     // TODO: Update possible properties?
+
+    // If no child is left, group should also be removed
+    if(!this.children.size)
+      return this.adapter.removeGroup(this);
+
     return true;
   }
 }

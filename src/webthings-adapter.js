@@ -347,10 +347,38 @@ class MqttAdapter extends Adapter {
     device.queryGroupMembership(); // Will only query online devices
   }
 
+  /**
+   * 
+   * @param {MqttDevice} device 
+   */
   removeDevice(device) {
-    this.handleDeviceRemoved(device);
+    if(device.isGroup())
+      return this.removeGroup(device);
+
+    this.storage.removeDevice(device);
+
+    for (const groupid of device.group_list) {
+      /** @type {MqttDeviceGroup} */
+      const group = this.getDevice(groupid);
+      group.removeChild(device);
+    }
 
     console.info(`Removed ${device.friendlyName} from devices`);
+    this.handleDeviceRemoved(device);
+  }
+
+  /**
+   * 
+   * @param {MqttDeviceGroup} groups 
+   */
+  removeGroup(group) {
+    if(!group.isGroup())
+      return;
+
+    this.storage.removeGroup(group);
+
+    console.info(`Removed group ${device.friendlyName} from devices`);
+    this.handleDeviceRemoved(group);
   }
 
   startPairing(_timeoutSeconds) {
